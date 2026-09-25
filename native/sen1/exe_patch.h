@@ -40,7 +40,13 @@ void PatchTurboMode(PatchExecData& execData,
                     int turboModeButton,
                     bool enableR2,
                     bool makeToggle,
-                    bool adjustTimersForTurbo);
+                    bool adjustTimersForTurbo
+#if defined(TRAILS_VR_PROJECT_EXTENSION)
+                    // D-451 (TOCS VR): when true, turbo never becomes active.
+                    ,
+                    bool vrLockTurboOff = false
+#endif
+);
 void PatchThorMasterQuartzString(PatchExecData& execData);
 void FixTextboxAdvancePrompt(PatchExecData& execData);
 void PatchDisableMouseCapture(PatchExecData& execData);

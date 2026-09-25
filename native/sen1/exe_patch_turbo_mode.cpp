@@ -23,7 +23,12 @@ void PatchTurboMode(PatchExecData& execData,
                     int turboModeButton,
                     bool enableR2,
                     bool makeToggle,
-                    bool adjustTimersForTurbo) {
+                    bool adjustTimersForTurbo
+#if defined(TRAILS_VR_PROJECT_EXTENSION)
+                    ,
+                    bool vrLockTurboOff
+#endif
+) {
     HyoutaUtils::Logger& logger = *execData.Logger;
     char* textRegion = execData.TextRegion;
     GameVersion version = execData.Version;
@@ -167,6 +172,16 @@ void PatchTurboMode(PatchExecData& execData,
 
         BranchHelper4Byte jmpBack;
         jmpBackShort.SetTarget(codespace);
+#if defined(TRAILS_VR_PROJECT_EXTENSION)
+        if (vrLockTurboOff) {
+            // D-451 (TOCS VR): an accidental turbo press made the headset view
+            // unusable. Every path converges here with the next-frame turbo
+            // state in al; force it off and keep the tracked flag consistent.
+            Emit_MOV_R8_IMM8(codespace, R8::AL, 0);
+            Emit_MOV_BytePtr_R8(codespace, &TurboActive, R8::AL);
+            logger.Log("TOCS VR: turbo mode locked off (VrLockTurbo=true).\n");
+        }
+#endif
         jmpBack.SetTarget(inject.JumpBackAddress);
         jmpBack.WriteJump(codespace, JC::JMP);
         execData.Codespace = codespace;

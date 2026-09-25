@@ -37,6 +37,13 @@ __declspec(dllexport) char SenPatcherVersion[] = SENPATCHER_VERSION;
 #define NOMINMAX
 #include <Windows.h>
 
+#if defined(TRAILS_VR_PROJECT_EXTENSION)
+// D-383: DirectInput observation only, opt-in TOCS_S4_DINPUT_OBSERVE=1. With
+// the env absent the DirectInput8Create export below forwards exactly as it
+// always did. Only defined for the VR-extension build of cs1hook.
+#include "dinput_observe.h"
+#endif
+
 using SenLib::Sen1::GameVersion;
 
 using PDirectInput8Create = HRESULT(
@@ -545,6 +552,9 @@ static void* SetupHacks(HyoutaUtils::Logger& logger) {
     bool forceXInput = false;
     bool allowR2NotebookShortcut = false;
     int turboModeButton = 7;
+#if defined(TRAILS_VR_PROJECT_EXTENSION)
+    bool vrLockTurbo = false; // D-451: opt-in via senpatcher_settings.ini
+#endif
     bool fixBgmEnqueue = true;
     int cameraSensitivity = 3;
 
@@ -615,6 +625,9 @@ static void* SetupHacks(HyoutaUtils::Logger& logger) {
                 check_boolean("CS1", "ForceXInput", forceXInput);
                 check_boolean("CS1", "AlwaysUseNotebookR2", allowR2NotebookShortcut);
                 check_integer("CS1", "TurboModeButton", turboModeButton);
+#if defined(TRAILS_VR_PROJECT_EXTENSION)
+                check_boolean("CS1", "VrLockTurbo", vrLockTurbo);
+#endif
                 check_boolean("CS1", "FixBgmEnqueue", fixBgmEnqueue);
                 check_integer("CS1", "CameraSensitivity", cameraSensitivity);
             }
@@ -668,7 +681,12 @@ static void* SetupHacks(HyoutaUtils::Logger& logger) {
                                  turboModeButton,
                                  allowR2NotebookShortcut,
                                  makeTurboToggle,
-                                 adjustTimersForTurbo);
+                                 adjustTimersForTurbo
+#if defined(TRAILS_VR_PROJECT_EXTENSION)
+                                 ,
+                                 vrLockTurbo
+#endif
+    );
     Align16CodePage(logger, patchExecData.Codespace);
 
     if (correctLanguageVoiceTables) {
@@ -740,7 +758,14 @@ HRESULT __stdcall DirectInput8Create(HINSTANCE hinst,
     if (!addr) {
         return 0x8007000EL; // DIERR_OUTOFMEMORY
     }
+#if defined(TRAILS_VR_PROJECT_EXTENSION)
+    // D-383: observation only. Forwards to addr unconditionally; the caller can
+    // only be named from this function's own return address.
+    return trails_vr::ObserveDirectInput8Create(
+        addr, hinst, dwVersion, riidltf, ppvOut, punkOuter, _ReturnAddress());
+#else
     return addr(hinst, dwVersion, riidltf, ppvOut, punkOuter);
+#endif
 }
 
 // Old API for DInput <= 7.0
