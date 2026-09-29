@@ -42,6 +42,8 @@ __declspec(dllexport) char SenPatcherVersion[] = SENPATCHER_VERSION;
 // the env absent the DirectInput8Create export below forwards exactly as it
 // always did. Only defined for the VR-extension build of cs1hook.
 #include "dinput_observe.h"
+// D-696: TOCS_S4_VIRTUAL_PAD forces the ForceXInput patch below.
+#include "virtual_pad.h"
 #endif
 
 using SenLib::Sen1::GameVersion;
@@ -713,6 +715,12 @@ static void* SetupHacks(HyoutaUtils::Logger& logger) {
         SenLib::Sen1::PatchForce0Kerning(patchExecData);
         Align16CodePage(logger, patchExecData.Codespace);
     }
+#if defined(TRAILS_VR_PROJECT_EXTENSION)
+    // D-696: the virtual pad needs the game's XInput path.
+    if (trails_vr::VirtualPadEnabledFromEnv()) {
+        forceXInput = true;
+    }
+#endif
     if (forceXInput) {
         SenLib::Sen1::PatchForceXInput(patchExecData);
         Align16CodePage(logger, patchExecData.Codespace);
