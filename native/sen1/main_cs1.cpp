@@ -44,6 +44,8 @@ __declspec(dllexport) char SenPatcherVersion[] = SENPATCHER_VERSION;
 #include "dinput_observe.h"
 // D-696: TOCS_S4_VIRTUAL_PAD forces the ForceXInput patch below.
 #include "virtual_pad.h"
+// D-835 (#192): production writes no log unless diagnostics.debug_log or TOCS_VR_DEBUG_LOG=1.
+#include "debug_log.h"
 #endif
 
 using SenLib::Sen1::GameVersion;
@@ -747,8 +749,16 @@ static void* SetupHacks(HyoutaUtils::Logger& logger) {
 }
 
 PDirectInput8Create InjectionDllInitializer() {
+#if defined(TRAILS_VR_PROJECT_EXTENSION)
+    // D-835 (#192): a default-constructed Logger has no file and every Log call is a no-op.
+    HyoutaUtils::Logger logger = trails_vr::DebugLogEnabled()
+        ? HyoutaUtils::Logger(HyoutaUtils::IO::File(std::string_view("senpatcher_inject_cs1.log"),
+                                                    HyoutaUtils::IO::OpenMode::Write))
+        : HyoutaUtils::Logger();
+#else
     HyoutaUtils::Logger logger(HyoutaUtils::IO::File(std::string_view("senpatcher_inject_cs1.log"),
                                                      HyoutaUtils::IO::OpenMode::Write));
+#endif
     logger.Log("Initializing CS1 hook from SenPatcher, version " SENPATCHER_VERSION "...\n");
     auto* forwarder = LoadForwarderAddress(logger);
     SetupHacks(logger);
